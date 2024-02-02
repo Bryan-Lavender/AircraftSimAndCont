@@ -7,6 +7,7 @@ from airplane_sim.first_airplane import airplane_lrh
 
 airplane = airplane_lrh()
 print(airplane.max)
+
 A = np.arange(0, 20, 1)
 B = np.arange(20, 0, -1)
 y = 2*A+5
