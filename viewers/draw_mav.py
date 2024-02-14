@@ -79,7 +79,7 @@ class DrawMav:
         return object
 
     def get_sc_points(self):
-        """"
+        """" 
             Points that define the Mav, and the colors of the triangular mesh
             Define the points on the Mav following information in Appendix C.3
         """
@@ -89,77 +89,120 @@ class DrawMav:
         fuse_l2 = .3
         fuse_l3 = 1
 
-        points = self.unit_length * np.array([
+        points = [
+            [4,0,0],       #0 
+            [3,-1,0],      #1 
+            [3,0,-.5],     #2
+            [3,0,0],       #3
             
-            [.5, 0, .1],  # point 1 [0]
-            [.3, .2, -.2],  # point 2 [1]
-            [.3, -.2, -.2],  # point 3 [2]
-            [.3, -.2, .3],  # point 4 [3] z axis for now
-            [.3, .2, .3],  # point 5 [4]
+            [0, 0,-2],     #4
+            [0,-2.5,-.5],  #5
+
+            [-4,-1.5,-1.5],#6
+            [-6,0,-1.5],   #7
+
+            [-6, -1.5, -1.5],  #8
+            [-16,-20,0],   #9
+            [-17,-20,-.5], #10
+            [-17, 0, -0.5],#11
 
             
-            [-1, 0, 0],  # point 6 [5]
+            [-6, -1.75, -.5],#12
+            [-16, -20,0], # 13
+            [-16, 0, 0], # 14
 
-            [0, .5, 0],  # point 7 [6]
-            [-.4, .5, 0],  # point 8 [7]
-            [-.4, -.5, 0],  # point 9 [8]
-            [0, -.5, 0],  # point 10 [9]
+            [-5, -6, -.5], # 15
+            [-5, -5.5, -1.5], # 16
+            [-5, -4.5, -1.5], # 17
+            [-5, -3.5, -1.5], # 18
+            [-5, -3, -.5], # 19
+            [-5.5, -4, -1.5], # 20
+            [-5.5, -5, -1.5], # 21
+            [-11, -6, -.5], # 22
+            [-11, -5.5, -.5], # 23
+            [-11, -3.5, -.5], # 24
+            [-11, -3, -.5], # 25
 
 
-            [-.7, .3, 0],  # point 11 [10]
-            [-1, .3, 0],  # point 12 [11]
-            [-1, -.3, 0],  # point 13 [12]
-            [-.7, -.3, 0],  # point 14 [13]
-
-            [-.7, 0, 0],  # point 15 [14]
-            [-1, 0, -.4],  # point 16 [15]
-            ]).T
+            [-5.5,-5.5,-1.5], #26
+            [-5.5,-3.5,-1.5], #27
+            ]
+        static_len = len(points)
+        for i in range(0, len(points)):
+            
+            points.append([points[i][0], -1 *points[i][1], points[i][2]])
+        
+        points = self.unit_length * 1/10 * np.array(points).T
         # point index that defines the mesh
-        index = np.array([
-            [0, 1, 2],  # Mesh 0 Top Nose Face
-            [0, 2, 3],  # left face from x axis
-            [0, 3, 4],  # bottom face
-            [0, 4, 1],  # right face from x axis
+        index = [
+            [0, 1, 2],  #1  beak top left
+            [0,1,3],     #2  beak bottom left
+    
+            [4,5,2], #3  front left panal
+
+            [6,4,5], #4 pit left panal
+            [6,7,4], #5 pit right panal
+
+            [6,7,8], #6 pit back detail
+
+            [1,9,10],#wing edge
+            [1,10,2], #wing edge
+
+        
+            [2,11,10], #big upper triangle
+            [5,8,6],
+
+            [7,8,12],
+            [11,12,7],
+            [5,12,8],
+            [0,13,14],
+
+            [9,10,11],
+            [11,14,9],
+
+            #ENGINE BEGINNING AT 16
+            [16,21,26],
+            [21,20,17],
+            [20,27,18],
+            [23,24,26],
+            [24,26,27],
+            [23,15,16],
+            [16,23,26],
             
-            [1, 2, 5], #top
-            [2, 3, 5], #left side from x axis
-            [4, 1, 5], # right face form x axis
-            [3, 4, 5], #bottom
-
-            [6, 7, 9],  # wing 1
-            [7, 8, 9],  # wing 2
-
-            [10,11,13],  # tail wing 1
-            [11,12,13],  # tail wing 2
-            [5,15,14],  # tail wing top rutter
-            # [1, 5, 6],  # left 1
-            # [1, 6, 2],  # left 2
-            # [4, 5, 6],  # top 1
-            # [4, 6, 7],  # top 2
-            # [8, 9, 10],  # bottom 1
-            # [8, 10, 11],  # bottom 2  
-            ])
+            [24,25,18],
+            [18,19,25]
+            ]
+        static_len_2 = len(index)
+        for i in range(len(index)):
+            index.append([index[i][0] + static_len, index[i][1] + static_len, index[i][2] + static_len])
+        print(index)
+        index = np.array(index)
         #   define the colors for each face of triangular mesh
         red = np.array([1., 0., 0., 1])
         green = np.array([0., 1., 0., 1])
         blue = np.array([0., 0., 1., 1])
         yellow = np.array([1., 1., 0., 1])
-        meshColors = np.empty((13, 3, 4), dtype=np.float32)
+        meshColors = np.empty((index.shape[0], 3, 4), dtype=np.float32)
+
         meshColors[0] = yellow  # Top Nose Face
-        meshColors[1] = yellow  # front 2
-        meshColors[2] = yellow  # back 1
-        meshColors[3] = yellow  # back 2
+        meshColors[1] = yellow    # Bottom Nose Face
+        meshColors[2] = blue
+        meshColors[3] = green
+        meshColors[4] = blue
+        meshColors[5] = green
+        meshColors[6] = yellow
+        meshColors[7] = yellow
+        meshColors[8] = yellow
+        meshColors[9] = blue
+        meshColors[10] = green
+        meshColors[11] = blue
+        meshColors[12] = green
+        meshColors[13] = yellow
+        meshColors[14] = yellow
+        meshColors[15] = yellow
 
-        meshColors[4] = blue  # right 1
-        meshColors[5] = blue  # right 2
-        meshColors[6] = blue  # left 1
-        meshColors[7] = blue  # left 2
-        
-        meshColors[8] = red  # top 1
-        meshColors[9] = red  # top 2
-        
-        meshColors[10] = green  # bottom 1
-        meshColors[11] = green  # bottom 2
-        meshColors[12] = red
+        for i in range(16, static_len_2):
+            meshColors[i]= red
+        for i in range(static_len_2, len(index)):
+            meshColors[i] = meshColors[i - static_len_2]
         return points, index, meshColors
-

@@ -89,29 +89,62 @@ class MavDynamics:
         ##### TODO #####
         
         # Extract the States
-        # north = state.item(0)
+        north = state.item(0)
+        east = state.item(1)
+        down = state.item(2)
+        u = state.item(3)
+        v = state.item(4)
+        w = state.item(5)
 
+
+        e0 = state.item(6)
+        e1 = state.item(7)
+        e2 = state.item(8)
+        e3 = state.item(9)
+
+        p = state.item(10)
+        q = state.item(11)
+        r = state.item(12)
         # Extract Forces/Moments
-        # fx = forces_moments.item(0)
+        fx = forces_moments.item(0)
+        fy = forces_moments.item(1)
+        fz = forces_moments.item(2)
+        l = forces_moments.item(3) #Mx
+        m = forces_moments.item(4) #My
+        n = forces_moments.item(5) #Mz
+
 
         # Position Kinematics
-        # pos_dot = 
-
+        north_dot = u * (e1**2 + e0**2 - e2**2 - e3**2) + v*2*(e1*e2 - e3 * e0) + w*2*(e1*e3 + e2*e0)
+        east_dot = u * 2*(e1 * e2 + e3 * e0) + v * (e2**2 + e0**2 - e1**2 - e3**2) + w * 2*(e2*e3-e1*e0)
+        #east_dot = 0
+        down_dot = u * 2*(e1*e3 - e2 * e0) + v * 2*(e2*e3+e1*e0) + w * (e3**2 + e0**2 - e1**2 - e2**2)
+        #down_dot = 0
         # Position Dynamics
-        # u_dot = 
+        u_dot = (r*v - q*w) + fx/MAV.mass
+        v_dot = (p*w - r*u) + fy/MAV.mass
+        w_dot = (q*u - p*v) + fz/MAV.mass
+
 
 
         # rotational kinematics
-        # e0_dot =
+        e0_dot = .5*(-p*e1 - q*e2 - r*e3)
+        e1_dot = .5*(p*e0 + r*e2 - q*e3)
+        e2_dot = .5*(q*e0 - r*e1 + p*e3)
+        e3_dot = .5*(r*e0 + q*e1 - p*e2)
 
 
         # rotatonal dynamics
-        # p_dot = 
-        
-
+        p_dot = (MAV.gamma1*p*q-MAV.gamma2*q*r) + (MAV.gamma3*l+MAV.gamma4*n) ##### just note MAV.gamma's exist
+        q_dot = (MAV.gamma5*p*r-MAV.gamma6*(p**2 - r**2)) + ((1/MAV.Jy) * m)
+        r_dot = (MAV.gamma7*p*q - MAV.gamma1*q*r) + (MAV.gamma4*l + MAV.gamma8*n)
+        # p_dot = 0
+        # q_dot = 0
+        # r_dot = 0
         # collect the derivative of the states
         # x_dot = np.array([[north_dot, east_dot,... ]]).T
-        x_dot = np.array([[0,0,0,0,0,0,0,0,0,0,0,0,0]]).T
+        x_dot = np.array([[north_dot, east_dot, down_dot, u_dot, v_dot, w_dot, e0_dot, e1_dot, e2_dot, e3_dot, p_dot, q_dot,r_dot]]).T#
+        #x_dot = np.array([[0,0,0,0,0,0,0,0,0,0,0,0,0]])
         return x_dot
 
     def _update_true_state(self):
@@ -121,13 +154,22 @@ class MavDynamics:
         self.true_state.north = self._state.item(0)
         self.true_state.east = self._state.item(1)
         self.true_state.altitude = -self._state.item(2)
+
+        self.true_state.u = self._state.item(3)
+        self.true_state.v = self._state.item(4)
+        self.true_state.w = self._state.item(5)
+
         self.true_state.Va = 0
         self.true_state.alpha = 0
         self.true_state.beta = 0
         self.true_state.phi = phi
         self.true_state.theta = theta
         self.true_state.psi = psi
-        self.true_state.Vg = 0
+        self.true_state.Vg = np.sqrt(
+            self._state.item(3)**2 
+            + self._state.item(4)**2 
+            + self._state.item(5)**2
+            )
         self.true_state.gamma = 0
         self.true_state.chi = 0
         self.true_state.p = self._state.item(10)
@@ -140,3 +182,4 @@ class MavDynamics:
         self.true_state.bz = 0
         self.true_state.camera_az = 0
         self.true_state.camera_el = 0
+        

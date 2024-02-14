@@ -17,3 +17,5 @@ ments on l and n and verify that there is no coupling between the
 roll and yaw axes. Verify that when Jxz is not zero, there is coupling
 between the roll and yaw axes.
     - Save a video or demonstrate both of these cases.
+
+    --- do experiment in class on monday

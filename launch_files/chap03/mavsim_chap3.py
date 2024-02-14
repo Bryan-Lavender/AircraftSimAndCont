@@ -56,14 +56,15 @@ end_time = 60
 print("Press 'Esc' to exit...")
 while sim_time < end_time:
     # ------- vary forces and moments to check dynamics -------------
-    fx = 0  # 10
-    fy = 0  # 10
-    fz = 100  # 10
-    Mx = 0.1  # 0.1
-    My = 0  # 0.1
-    Mz = 0  # 0.1
+    fx = 0  # 10 0
+    fy = 0  # 10 0
+    fz = 0  # 100
+    Mx = 0  # 0.1
+    My = 0  # 0.1 0
+    Mz = 0  # 0.1 0
+    
     forces_moments = np.array([[fx, fy, fz, Mx, My, Mz]]).T
-
+    
     # ------- physical system -------------
     mav.update(forces_moments)  # propagate the MAV dynamics
 

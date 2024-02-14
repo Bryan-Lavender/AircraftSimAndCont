@@ -135,6 +135,21 @@ class DataViewer:
         self._plotter.create_data_set(plot_id="delta_a", data_label="delta_a", data_color=control_color)
         self._plotter.create_data_set(plot_id="delta_r", data_label="delta_r", data_color=control_color)
         self._plotter.create_data_set(plot_id="delta_t", data_label="delta_t", data_color=control_color)
+        
+        # added sixth row
+        self._plotter.create_plot_widget(plot_id='u', xlabel='Time (s)', ylabel='u (m/s)',
+                                       window_length=self._data_window_length)
+        self._plotter.create_plot_widget(plot_id='v', xlabel='Time (s)', ylabel='v (m/s)',
+                                       window_length=self._data_window_length)
+        self._plotter.create_plot_widget(plot_id='w', xlabel='Time (s)', ylabel='w (m/s)',
+                                       window_length=self._data_window_length)
+        self._plotter.create_plot_widget(plot_id='blank', xlabel='Time (s)', ylabel='delta_t (deg)',
+                                       window_length=self._data_window_length)
+        self._plotter.create_data_set(plot_id="u", data_label="u", data_color=control_color)
+        self._plotter.create_data_set(plot_id="v", data_label="v", data_color=control_color)
+        self._plotter.create_data_set(plot_id="w", data_label="w", data_color=control_color)
+        self._plotter.create_data_set(plot_id="blank", data_label="blank", data_color=control_color)
+        
         self._plotter.show_window()
 
     def update(self, true_state, estimated_state, commanded_state, delta):
@@ -177,6 +192,10 @@ class DataViewer:
             self._plotter.add_data_point(plot_id='bias', data_label='bx', xvalue=t, yvalue=self.__rad_to_deg(true_state.bx))
             self._plotter.add_data_point(plot_id='bias', data_label='by', xvalue=t, yvalue=self.__rad_to_deg(true_state.by))
             self._plotter.add_data_point(plot_id='bias', data_label='bz', xvalue=t, yvalue=self.__rad_to_deg(true_state.bz))
+
+            self._plotter.add_data_point(plot_id='u', data_label='u', xvalue=t, yvalue=true_state.u)
+            self._plotter.add_data_point(plot_id='v', data_label='v', xvalue=t, yvalue=true_state.v)
+            self._plotter.add_data_point(plot_id='w', data_label='w', xvalue=t, yvalue=true_state.w)
         #add the estimated state data
         if estimated_state != None:
             self._plotter.add_data_point(plot_id='pn', data_label='pn_e', xvalue=t, yvalue=estimated_state.north)
