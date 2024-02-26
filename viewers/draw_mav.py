@@ -175,7 +175,6 @@ class DrawMav:
         static_len_2 = len(index)
         for i in range(len(index)):
             index.append([index[i][0] + static_len, index[i][1] + static_len, index[i][2] + static_len])
-        print(index)
         index = np.array(index)
         #   define the colors for each face of triangular mesh
         red = np.array([1., 0., 0., 1])

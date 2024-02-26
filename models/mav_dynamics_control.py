@@ -14,7 +14,7 @@ from models.mav_dynamics import MavDynamics as MavDynamicsForces
 from message_types.msg_state import MsgState
 from message_types.msg_delta import MsgDelta
 import parameters.aerosonde_parameters as MAV
-from tools.rotations import quaternion_to_rotation, quaternion_to_euler
+from tools.rotations import quaternion_to_rotation, quaternion_to_euler, euler_to_rotation
 
 
 class MavDynamics(MavDynamicsForces):
@@ -58,11 +58,21 @@ class MavDynamics(MavDynamicsForces):
         gust = wind[3:6]
 
         ##### TODO #####
+        Vg_b = self._state[3:6]
+        
         # convert wind vector from world to body frame (self._wind = ?)
+        phi, theta, psi = quaternion_to_euler(self._state[6:10])
 
+        self._wind = euler_to_rotation(phi, theta, psi).T @ (steady_state+gust)
         # velocity vector relative to the airmass ([ur , vr, wr]= ?)
+        Va_b = Vg_b - steady_state
+        ur, vr, wr = Va_b[:,0]
 
         # compute airspeed (self._Va = ?)
+
+        self._Va = np.linalg.norm(Va_b, axis = 1)[0]
+        self._alpha = np.arctan2(wr,ur)
+        self._beta = np.arcsin(vr/self._Va)
 
         # compute angle of attack (self._alpha = ?)
         
@@ -78,39 +88,78 @@ class MavDynamics(MavDynamicsForces):
         # extract states (phi, theta, psi, p, q, r)
 
         # compute gravitational forces ([fg_x, fg_y, fg_z])
+        phi,theta,psi = quaternion_to_euler(self._state[6:10])
+        
+        p = self._state.item(10)
+        q = self._state.item(11)
+        r = self._state.item(12)
+
+        fg_b = np.matmul(euler_to_rotation(phi,theta,psi).T, [[0],[0],[MAV.gravity * MAV.mass]])
+        
+        M_minus = np.exp(-MAV.M * (self._alpha - MAV.alpha0))
+        M_plus = np.exp(MAV.M*(self._alpha + MAV.alpha0))
+        sigmoid = (1 + M_minus + M_plus)/((1 +M_minus)*(1+M_minus))
+
+        CL = (1-sigmoid)*(MAV.C_L_0 + MAV.C_L_alpha * self._alpha) + sigmoid * (2 * np.sign(self._alpha)*np.sin(self._alpha)**2*np.cos(self._alpha))
+        CD = MAV.C_D_p + (MAV.C_L_0 + MAV.C_L_alpha * self._alpha)**2/(np.pi * MAV.e*MAV.AR)
+
+        q_bar = .5 * MAV.rho * self._Va**2
+        F_lift = q_bar * MAV.S_wing * (CL + MAV.C_L_delta_e * delta.elevator + MAV.C_L_q * (MAV.c * q/(2*self._Va)))
+        F_drag = q_bar * MAV.S_wing * (CD + MAV.C_D_delta_e * delta.elevator + MAV.C_D_q * (MAV.c * q/(2*self._Va)))
 
 
-
+        print("wait")
         # compute Lift and Drag coefficients (CL, CD)
 
         # compute Lift and Drag Forces (F_lift, F_drag)
 
         # propeller thrust and torque
-        # thrust_prop, torque_prop = self._motor_thrust_torque(self._Va, delta.throttle)
+        thrust_prop, torque_prop = self._motor_thrust_torque(self._Va, delta.throttle)
 
         # compute longitudinal forces in body frame (fx, fz)
+        fx, fz = np.array([[np.cos(self._alpha), -np.sin(self._alpha)], [np.sin(self._alpha), np.cos(self._alpha)]]) @ np.array([-F_drag, -F_lift])
 
         # compute lateral forces in body frame (fy)
-
+        
+        fy = q_bar * MAV.S_wing * (MAV.C_Y_0 + MAV.C_Y_beta * self._beta + p*(MAV.C_Y_p * MAV.b)/(2*self._Va) + r*(MAV.C_Y_r * MAV.b)/(2*self._Va) + MAV.C_Y_delta_a * delta.aileron + MAV.C_Y_delta_r * delta.rudder)
         # compute logitudinal torque in body frame (My)
-
+        CM = MAV.C_m_0 + MAV.C_m_alpha * self._alpha + q * MAV.C_m_q * (MAV.c/(2 * self._Va))
+        My = q_bar * MAV.S_prop * MAV.c * (CM + MAV.C_m_delta_e * delta.elevator)
         # compute lateral torques in body frame (Mx, Mz)
+        Mx = q_bar * MAV.S_wing * MAV.b * (MAV.C_ell_0 + MAV.C_ell_beta * self._beta + p*(MAV.C_ell_p * MAV.b)/(2*self._Va) + r*(MAV.C_ell_r * MAV.b)/(2*self._Va) + MAV.C_ell_delta_a * delta.aileron + MAV.C_ell_delta_r * delta.rudder)
+        Mz = q_bar * MAV.S_wing * MAV.b * (MAV.C_n_0 + MAV.C_n_beta * self._beta + p*(MAV.C_n_p * MAV.b)/(2*self._Va) + r*(MAV.C_n_r * MAV.b)/(2*self._Va) + MAV.C_n_delta_a * delta.aileron + MAV.C_n_delta_r * delta.rudder)
 
-        forces_moments = np.array([[0, 0, 0, 0, 0, 0]]).T
+
+        Fx = fx + fg_b[0] + thrust_prop
+        Fy = fy + fg_b[1]
+        Fz = fz + fg_b[2]
+
+        Ml = Mx + torque_prop
+       
+        forces_moments = np.array([[Fx[0], Fy[0], Fz[0], Ml, My, Mz]]).T
         return forces_moments
 
     def _motor_thrust_torque(self, Va, delta_t):
         # compute thrust and torque due to propeller
         ##### TODO #####
         # map delta_t throttle command(0 to 1) into motor input voltage
-        # v_in =
+        v_in = delta_t * MAV.V_max
 
         # Angular speed of propeller (omega_p = ?)
+        a = MAV.rho * (MAV.D_prop**5) * MAV.C_Q0/((2 * np.pi )**2)
+        b = MAV.rho * (MAV.D_prop**4) * MAV.C_Q1/((2 * np.pi )) * Va + (MAV.KQ * MAV.KV)/MAV.R_motor
+        c = MAV.rho * (MAV.D_prop**3) * MAV.C_Q2 * (Va**2) - (MAV.KQ/MAV.R_motor) * v_in + MAV.KQ * MAV.i0
+
+        omega_p = (-b + np.sqrt(b**2 - 4*a*c))/(2*a)
+        # J = 2*np.pi*Va/(omega_p*MAV.D_prop)
+
+        # Ct = MAV.C_T2 * J **2 + MAV.C_T1*J + MAV.C_T0
+        # CQ = MAV.C_Q2 * J **2 + MAV.C_Q1*J + MAV.C_Q0
 
         # thrust and torque due to propeller
-        thrust_prop = 0
-        torque_prop = 0
-
+        
+        thrust_prop = ((MAV.rho*(MAV.D_prop**4) * MAV.C_T0)/(4 * np.pi**2)) * omega_p**2 + ((MAV.rho * MAV.D_prop**3)*MAV.C_T1*Va/(2 * np.pi)) * omega_p + (MAV.rho*MAV.D_prop**2)*MAV.C_T2 * Va**2
+        torque_prop = (((MAV.rho*MAV.D_prop**5)*MAV.C_Q0)/(4 * np.pi**2))*omega_p**2 + ((MAV.rho * (MAV.D_prop**4)*MAV.C_Q1*Va)/(2 * np.pi))*omega_p + (MAV.rho * (MAV.D_prop**3) * MAV.C_Q2)*Va**2
         return thrust_prop, torque_prop
 
     def _update_true_state(self):
@@ -120,6 +169,11 @@ class MavDynamics(MavDynamicsForces):
         self.true_state.north = self._state.item(0)
         self.true_state.east = self._state.item(1)
         self.true_state.altitude = -self._state.item(2)
+
+        self.true_state.u = self._state.item(3)
+        self.true_state.v = self._state.item(4)
+        self.true_state.w = self._state.item(5)
+
         self.true_state.Va = self._Va
         self.true_state.alpha = self._alpha
         self.true_state.beta = self._beta
