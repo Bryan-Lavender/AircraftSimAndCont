@@ -89,16 +89,16 @@ class MavDynamics(MavDynamicsForces):
 
         # compute gravitational forces ([fg_x, fg_y, fg_z])
         phi,theta,psi = quaternion_to_euler(self._state[6:10])
-        
+        e0, ex, ey, ez = self._state[6:10]
         p = self._state.item(10)
         q = self._state.item(11)
         r = self._state.item(12)
 
-        fg_b = np.matmul(euler_to_rotation(phi,theta,psi).T, [[0],[0],[MAV.gravity * MAV.mass]])
-        
+        fg_b = MAV.gravity * MAV.mass * np.array([2*(ex*ez - ey*e0), 2*(ey*ez+ex*e0), ez**2+e0**2-ex**2-ey**2])
+
         M_minus = np.exp(-MAV.M * (self._alpha - MAV.alpha0))
         M_plus = np.exp(MAV.M*(self._alpha + MAV.alpha0))
-        sigmoid = (1 + M_minus + M_plus)/((1 +M_minus)*(1+M_minus))
+        sigmoid = (1 + M_minus + M_plus)/((1 +M_minus)*(1+M_plus))
 
         CL = (1-sigmoid)*(MAV.C_L_0 + MAV.C_L_alpha * self._alpha) + sigmoid * (2 * np.sign(self._alpha)*np.sin(self._alpha)**2*np.cos(self._alpha))
         CD = MAV.C_D_p + (MAV.C_L_0 + MAV.C_L_alpha * self._alpha)**2/(np.pi * MAV.e*MAV.AR)
@@ -108,7 +108,6 @@ class MavDynamics(MavDynamicsForces):
         F_drag = q_bar * MAV.S_wing * (CD + MAV.C_D_delta_e * delta.elevator + MAV.C_D_q * (MAV.c * q/(2*self._Va)))
 
 
-        print("wait")
         # compute Lift and Drag coefficients (CL, CD)
 
         # compute Lift and Drag Forces (F_lift, F_drag)
@@ -124,7 +123,7 @@ class MavDynamics(MavDynamicsForces):
         fy = q_bar * MAV.S_wing * (MAV.C_Y_0 + MAV.C_Y_beta * self._beta + p*(MAV.C_Y_p * MAV.b)/(2*self._Va) + r*(MAV.C_Y_r * MAV.b)/(2*self._Va) + MAV.C_Y_delta_a * delta.aileron + MAV.C_Y_delta_r * delta.rudder)
         # compute logitudinal torque in body frame (My)
         CM = MAV.C_m_0 + MAV.C_m_alpha * self._alpha + q * MAV.C_m_q * (MAV.c/(2 * self._Va))
-        My = q_bar * MAV.S_prop * MAV.c * (CM + MAV.C_m_delta_e * delta.elevator)
+        My = q_bar * MAV.S_wing * MAV.c * (CM + MAV.C_m_delta_e * delta.elevator)
         # compute lateral torques in body frame (Mx, Mz)
         Mx = q_bar * MAV.S_wing * MAV.b * (MAV.C_ell_0 + MAV.C_ell_beta * self._beta + p*(MAV.C_ell_p * MAV.b)/(2*self._Va) + r*(MAV.C_ell_r * MAV.b)/(2*self._Va) + MAV.C_ell_delta_a * delta.aileron + MAV.C_ell_delta_r * delta.rudder)
         Mz = q_bar * MAV.S_wing * MAV.b * (MAV.C_n_0 + MAV.C_n_beta * self._beta + p*(MAV.C_n_p * MAV.b)/(2*self._Va) + r*(MAV.C_n_r * MAV.b)/(2*self._Va) + MAV.C_n_delta_a * delta.aileron + MAV.C_n_delta_r * delta.rudder)
@@ -134,7 +133,7 @@ class MavDynamics(MavDynamicsForces):
         Fy = fy + fg_b[1]
         Fz = fz + fg_b[2]
 
-        Ml = Mx + torque_prop
+        Ml = Mx - torque_prop
        
         forces_moments = np.array([[Fx[0], Fy[0], Fz[0], Ml, My, Mz]]).T
         return forces_moments

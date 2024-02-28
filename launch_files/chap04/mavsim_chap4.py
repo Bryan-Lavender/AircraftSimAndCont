@@ -14,6 +14,7 @@ sys.path.insert(0,os.fspath(Path(__file__).parents[2]))
 # use QuitListener for Linux or PC <- doesn't work on Mac
 #from python_tools.quit_listener import QuitListener
 import pyqtgraph as pg
+import keyboard
 import parameters.simulation_parameters as SIM
 from models.mav_dynamics_control import MavDynamics
 from models.wind_simulation import WindSimulation
@@ -58,10 +59,23 @@ end_time = 60
 print("Press 'Esc' to exit...")
 while sim_time < end_time:
     # ------- set control surfaces -------------
-    delta.elevator = -0.1248
-    delta.aileron = 0.001836
-    delta.rudder = -0.0003026
-    delta.throttle = 0.6768
+    
+    if keyboard.is_pressed('w'):
+        delta.elevator += 0.01  # Adjust value as needed
+    if keyboard.is_pressed('s'):
+        delta.elevator -= 0.01
+    if keyboard.is_pressed('a'):
+        delta.rudder -= 0.01
+    if keyboard.is_pressed('d'):
+        delta.rudder += 0.01
+    if keyboard.is_pressed('q'):
+        delta.aileron -= 0.01
+    if keyboard.is_pressed('e'):
+        delta.aileron += 0.01
+    if keyboard.is_pressed('b'):
+        delta.throttle += 0.01
+    if keyboard.is_pressed('n'):
+        delta.throttle -= 0.01
 
     # ------- physical system -------------
     current_wind = wind.update()  # get the new wind vector
