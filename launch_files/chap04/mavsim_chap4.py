@@ -21,6 +21,7 @@ from models.wind_simulation import WindSimulation
 from viewers.mav_viewer import MavViewer
 from viewers.data_viewer import DataViewer
 from message_types.msg_delta import MsgDelta
+from mystuff.trim import compute_trim
 ###
 #quitter = QuitListener()
 
@@ -49,33 +50,54 @@ if PLOTS:
 wind = WindSimulation(SIM.ts_simulation)
 mav = MavDynamics(SIM.ts_simulation)
 delta = MsgDelta()
+delta.elevator = -0.1248
+delta.aileron = 0.00
+delta.rudder = -0.000
+delta.throttle = 0.6768
 
+# create initialization paramters
+Va0 = 35.0
+alpha0=0.
+beta0=0.
+mav.initialize_velocity(Va0, alpha0, beta0)
+
+
+
+alpha, elevator, throttle = compute_trim(mav, delta)
+mav.initialize_velocity(Va0, alpha, beta0)
+delta.elevator = elevator
+delta.throttle = throttle
+print(delta.elevator, delta.throttle)
 # initialize the simulation time
 sim_time = SIM.start_time
 plot_time = sim_time
-end_time = 60
-
+end_time = 100
+#exit()
 # main simulation loop
 print("Press 'Esc' to exit...")
 while sim_time < end_time:
-    # ------- set control surfaces -------------
     
-    if keyboard.is_pressed('w'):
-        delta.elevator += 0.01  # Adjust value as needed
-    if keyboard.is_pressed('s'):
-        delta.elevator -= 0.01
-    if keyboard.is_pressed('a'):
-        delta.rudder -= 0.01
-    if keyboard.is_pressed('d'):
-        delta.rudder += 0.01
-    if keyboard.is_pressed('q'):
-        delta.aileron -= 0.01
-    if keyboard.is_pressed('e'):
-        delta.aileron += 0.01
-    if keyboard.is_pressed('b'):
-        delta.throttle += 0.01
-    if keyboard.is_pressed('n'):
-        delta.throttle -= 0.01
+    # # ------- set control surfaces -------------
+    # if abs((sim_time-3.)) < .01:
+    #     delta.elevator += .1
+    # if keyboard.is_pressed('w'):
+    #     delta.elevator += 0.01  # Adjust value as needed
+    # if keyboard.is_pressed('s'):
+    #     delta.elevator -= 0.01
+    # if keyboard.is_pressed('a'):
+    #     delta.rudder -= 0.01
+    # if keyboard.is_pressed('d'):
+    #     delta.rudder += 0.01
+    # if keyboard.is_pressed('q'):
+    #     delta.aileron -= 0.01
+    # if keyboard.is_pressed('e'):
+    #     delta.aileron += 0.01
+    # if keyboard.is_pressed('b'):
+    #     delta.throttle += 0.01
+    # if keyboard.is_pressed('n'):
+    #     delta.throttle -= 0.01
+
+    
 
     # ------- physical system -------------
     current_wind = wind.update()  # get the new wind vector

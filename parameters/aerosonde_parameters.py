@@ -8,16 +8,23 @@ from tools.rotations import euler_to_quaternion
 north0 = 0.  # initial north position
 east0 = 0.  # initial east position
 down0 = -100.0  # initial down position
+Va0= 25.
 u0 = 25.  # initial velocity along body x-axis
+alpha0_cool = np.deg2rad(3) # 3 degrees
+u0 = np.sqrt(Va0**2 / (1+np.tan(alpha0_cool)**2))
+u0 = 0.
+w_u = np.tan(alpha0_cool)
+w0 = u0*w_u
+Va1 = np.linalg.norm(np.array([u0,w0]))
 v0 = 0.  # initial velocity along body y-axis
-w0 = 0.  # initial velocity along body z-axis
+#w0 = 0.  # initial velocity along body z-axis
 phi0 = 0.  # initial roll angle
-theta0 = 0.  # initial pitch angle
+theta0 = 0.0  # initial pitch angle
 psi0 = 0.0  # initial yaw angle
 p0 = 0  # initial roll rate
-q0 = 0  # initial pitch rate
-r0 = 0  # initial yaw rate
-Va0 = np.sqrt(u0**2+v0**2+w0**2)
+q0 = 0#0.1  # initial pitch rate
+r0 = 0 # initial yaw rate
+#Va0 = np.sqrt(u0**2+v0**2+w0**2)
 #   Quaternion State
 e = euler_to_quaternion(phi0, theta0, psi0)
 e0 = e.item(0)
@@ -53,7 +60,7 @@ C_L_alpha = 5.61
 C_D_alpha = 0.03
 C_m_alpha = -2.74
 C_L_q = 7.95
-C_D_q = 0.0
+C_D_q = 0#0.043
 C_m_q = -38.21
 C_L_delta_e = 0.13
 C_D_delta_e = 0.0135
@@ -61,7 +68,7 @@ C_m_delta_e = -0.99
 M = 50.0
 alpha0 = 0.47
 epsilon = 0.16
-C_D_p = 0.0
+C_D_p = 0.043
 
 
 ######################################################################################
@@ -99,6 +106,10 @@ KQ = KV                                           # Motor torque constant, KQ in
 R_motor = 0.042              # ohms
 i0 = 1.5                     # no-load (zero-torque) current (A)
 
+#C_prop = 1.0
+K_motor = 40 #80 in book
+K_T_P = 0
+K_Omega=0
 
 # Inputs
 ncells = 12.
