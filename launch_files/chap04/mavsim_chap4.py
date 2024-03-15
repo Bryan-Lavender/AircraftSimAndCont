@@ -22,6 +22,7 @@ from viewers.mav_viewer import MavViewer
 from viewers.data_viewer import DataViewer
 from message_types.msg_delta import MsgDelta
 from mystuff.trim import compute_trim
+
 ###
 #quitter = QuitListener()
 
