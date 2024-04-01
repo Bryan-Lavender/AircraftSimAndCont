@@ -120,8 +120,12 @@ class MavDynamics(MavDynamicsForces):
         CD = MAV.C_D_p + (MAV.C_L_0 + MAV.C_L_alpha * self._alpha)**2/(np.pi * MAV.e*MAV.AR)
 
         q_bar = .5 * MAV.rho * self._Va**2
-        F_lift = q_bar * MAV.S_wing * (CL + MAV.C_L_delta_e * delta.elevator + MAV.C_L_q * (MAV.c * q/(2*self._Va)))
-        F_drag = q_bar * MAV.S_wing * (CD + MAV.C_D_delta_e * delta.elevator + MAV.C_D_q * (MAV.c * q/(2*self._Va)))
+        if self._Va == 0:
+            F_lift = 0
+            F_drag =0
+        else:
+            F_lift = q_bar * MAV.S_wing * (CL + MAV.C_L_delta_e * delta.elevator + MAV.C_L_q * (MAV.c * q/(2*self._Va)))
+            F_drag = q_bar * MAV.S_wing * (CD + MAV.C_D_delta_e * delta.elevator + MAV.C_D_q * (MAV.c * q/(2*self._Va)))
 
 
         # compute Lift and Drag coefficients (CL, CD)
@@ -135,16 +139,21 @@ class MavDynamics(MavDynamicsForces):
         fx, fz = np.array([[np.cos(self._alpha), -np.sin(self._alpha)], [np.sin(self._alpha), np.cos(self._alpha)]]) @ np.array([-F_drag, -F_lift])
 
         # compute lateral forces in body frame (fy)
+        fy = 0
+        CM = 0
+        My = 0
+        Mx = 0
+        Mz = 0
+        if self._Va != 0:
+            fy = q_bar * MAV.S_wing * (MAV.C_Y_0 + MAV.C_Y_beta * self._beta + p*(MAV.C_Y_p * MAV.b)/(2*self._Va) + r*(MAV.C_Y_r * MAV.b)/(2*self._Va) + MAV.C_Y_delta_a * delta.aileron + MAV.C_Y_delta_r * delta.rudder)
+            # compute logitudinal torque in body frame (My)
+            CM = MAV.C_m_0 + MAV.C_m_alpha * self._alpha + q * MAV.C_m_q * (MAV.c/(2 * self._Va))
+            My = q_bar * MAV.S_wing * MAV.c * (CM + MAV.C_m_delta_e * delta.elevator)
+            # compute lateral torques in body frame (Mx, Mz)
+            Mx = q_bar * MAV.S_wing * MAV.b * (MAV.C_ell_0 + MAV.C_ell_beta * self._beta + p*(MAV.C_ell_p * MAV.b)/(2*self._Va) + r*(MAV.C_ell_r * MAV.b)/(2*self._Va) + MAV.C_ell_delta_a * delta.aileron + MAV.C_ell_delta_r * delta.rudder)
+            
+            Mz = q_bar * MAV.S_wing * MAV.b * (MAV.C_n_0 + MAV.C_n_beta * self._beta + p*(MAV.C_n_p * MAV.b)/(2*self._Va) + r*(MAV.C_n_r * MAV.b)/(2*self._Va) + MAV.C_n_delta_a * delta.aileron + MAV.C_n_delta_r * delta.rudder)
         
-        fy = q_bar * MAV.S_wing * (MAV.C_Y_0 + MAV.C_Y_beta * self._beta + p*(MAV.C_Y_p * MAV.b)/(2*self._Va) + r*(MAV.C_Y_r * MAV.b)/(2*self._Va) + MAV.C_Y_delta_a * delta.aileron + MAV.C_Y_delta_r * delta.rudder)
-        # compute logitudinal torque in body frame (My)
-        CM = MAV.C_m_0 + MAV.C_m_alpha * self._alpha + q * MAV.C_m_q * (MAV.c/(2 * self._Va))
-        My = q_bar * MAV.S_wing * MAV.c * (CM + MAV.C_m_delta_e * delta.elevator)
-        # compute lateral torques in body frame (Mx, Mz)
-        Mx = q_bar * MAV.S_wing * MAV.b * (MAV.C_ell_0 + MAV.C_ell_beta * self._beta + p*(MAV.C_ell_p * MAV.b)/(2*self._Va) + r*(MAV.C_ell_r * MAV.b)/(2*self._Va) + MAV.C_ell_delta_a * delta.aileron + MAV.C_ell_delta_r * delta.rudder)
-        
-        Mz = q_bar * MAV.S_wing * MAV.b * (MAV.C_n_0 + MAV.C_n_beta * self._beta + p*(MAV.C_n_p * MAV.b)/(2*self._Va) + r*(MAV.C_n_r * MAV.b)/(2*self._Va) + MAV.C_n_delta_a * delta.aileron + MAV.C_n_delta_r * delta.rudder)
-
 
         Fx = fx + fg_b[0] + thrust_prop
         Fy = fy + fg_b[1]
@@ -218,6 +227,7 @@ class MavDynamics(MavDynamicsForces):
     def _update_true_state(self):
         # rewrite this function because we now have more information
         phi, theta, psi = quaternion_to_euler(self._state[6:10])
+        
         pdot = quaternion_to_rotation(self._state[6:10]) @ self._state[3:6]
         self.true_state.north = self._state.item(0)
         self.true_state.east = self._state.item(1)

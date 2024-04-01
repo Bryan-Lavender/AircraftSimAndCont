@@ -22,6 +22,8 @@ from viewers.mav_viewer import MavViewer
 from viewers.data_viewer import DataViewer
 from message_types.msg_delta import MsgDelta
 from mystuff.trim import compute_trim
+from models.compute_models import compute_ss_model
+import numpy as np
 
 ###
 #quitter = QuitListener()
@@ -68,7 +70,15 @@ alpha, elevator, throttle = compute_trim(mav, delta)
 mav.initialize_velocity(Va0, alpha, beta0)
 delta.elevator = elevator
 delta.throttle = throttle
-print(delta.elevator, delta.throttle)
+
+# A_lon, B_lon, A_lat, B_lat = compute_ss_model(mav, mav._state[:13], MsgDelta(elevator=elevator, aileron =0, rudder = 0, throttle = throttle))
+# eigs = np.linalg.eigvals(A_lon)
+
+# real = [i.real for i in eigs] 
+# print(real)
+
+# imag = [i.imag for i in eigs] 
+# print(imag)
 # initialize the simulation time
 sim_time = SIM.start_time
 plot_time = sim_time
@@ -76,6 +86,8 @@ end_time = 100
 #exit()
 # main simulation loop
 print("Press 'Esc' to exit...")
+
+
 while sim_time < end_time:
     
     # # ------- set control surfaces -------------

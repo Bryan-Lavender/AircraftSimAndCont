@@ -99,12 +99,12 @@ def compute_tf_model(mav, trim_state, trim_input):
 
 
     rhovacs = .5 * MAV.rho * Va_trim**2 * MAV.S_wing * MAV.c/(MAV.Jy)
-    a_theta1 = rhovacs * MAV.C_M_q * MAV.c/(2*Va_trim)
+    a_theta1 = rhovacs * MAV.C_m_q * MAV.c/(2*Va_trim)
     a_theta2 = rhovacs * MAV.C_m_alpha
     a_theta3 = rhovacs * MAV.C_m_delta_e
 
     # Compute transfer function coefficients using new propulsion model
-    a_V1 = (MAV.rho * Va_trim * MAV.S_wing/MAV.m) * (MAV.C_D_0 + MAV.C_D_alpha * alpha_trim + MAV.C_D_delta_e* trim_input.elevator) - (1/MAV.mass) * dT_dVa(mav, Va_trim, trim_input.throttle)
+    a_V1 = (MAV.rho * Va_trim * MAV.S_wing/MAV.mass) * (MAV.C_D_0 + MAV.C_D_alpha * alpha_trim + MAV.C_D_delta_e* trim_input.elevator) - (1/MAV.mass) * dT_dVa(mav, Va_trim, trim_input.throttle)
     a_V2 = (1/MAV.mass) * dT_ddelta_t(mav, Va_trim, trim_input.throttle)
     a_V3 = MAV.gravity * np.cos(theta_trim - alpha_trim)
 
@@ -119,6 +119,7 @@ def compute_ss_model(mav, trim_state, trim_input):
     B = df_du(mav, x_euler, trim_input)
     # extract longitudinal states (u, w, q, theta, pd)
     A_lon = np.zeros((5,5))
+    A_lon = A[[3,5,10,7,2],:][:,[3,5,10,7,2]]
     B_lon = np.zeros((5,2))
     # change pd to h
 
@@ -144,15 +145,17 @@ def euler_state(x_quat):
 def quaternion_state(x_euler):
     # convert state x_euler with attitude represented by Euler angles
     # to x_quat with attitude represented by quaternions
-    print(x_euler[6:9])
-    Qangles = euler_to_quaternion(x_euler[6:9])
-    x_quat = [x_quat[i] for i in range(0, 6)]
+    a,b,c = x_euler[6:9]
+    Qangles = euler_to_quaternion(a,b,c)
+    x_quat = [x_euler[i] for i in range(0, 6)]
     for i in range(0, 4):
-        x_quat.append(Qangles[i])
+        x_quat.append(Qangles[i].item())
     for i in range(9, len(x_euler)):
         x_quat.append(x_euler[i])
     
     ##### TODO #####
+        
+   
     x_quat = np.array(x_quat)
     return x_quat
 
@@ -182,20 +185,20 @@ def f_euler(mav, x_euler, delta):
 
 
     
-    C_L_alpha = mav.C_L_0 + mav.C_L_alpha * mav._alpha
-    C_D_alpha = mav.C_D_0 + mav.C_D_alpha * mav._alpha
+    C_L_alpha = MAV.C_L_0 + MAV.C_L_alpha * mav._alpha
+    C_D_alpha = MAV.C_D_0 + MAV.C_D_alpha * mav._alpha
     CxAlpha = -C_D_alpha * cos_alpha + C_L_alpha * sin_alpha
-    Cxq = -mav.C_D_q * cos_alpha + mav.C_L_q * sin_alpha
-    CxDe = -mav.C_D_delta_e * cos_alpha + mav.C_L_delta_e * sin_alpha
+    Cxq = -MAV.C_D_q * cos_alpha + MAV.C_L_q * sin_alpha
+    CxDe = -MAV.C_D_delta_e * cos_alpha + MAV.C_L_delta_e * sin_alpha
 
     CzAlpha = -C_D_alpha * sin_alpha - C_L_alpha * cos_alpha
-    Czq = -mav.C_D_q * sin_alpha - mav.C_L_q * cos_alpha
-    CzDe = -mav.C_D_delta_e * sin_alpha - mav.C_L_delta_e * cos_alpha
-    thrust = 1/2*MAV.rho*MAV.S_prop*((MAV.K_motor*delta.thrust)**2 - mav._Va**2)
+    Czq = -MAV.C_D_q * sin_alpha - MAV.C_L_q * cos_alpha
+    CzDe = -MAV.C_D_delta_e * sin_alpha - MAV.C_L_delta_e * cos_alpha
+    thrust = 1/2*MAV.rho*MAV.S_prop*((MAV.K_motor*delta.throttle)**2 - mav._Va**2)
+    
 
 
-
-    dp = (mav.rho * mav._Va ** 2 * mav.S) / (2 * mav.m)
+    dp = (MAV.rho * mav._Va ** 2 * MAV.S_wing) / (2 * MAV.mass)
     # Equations for p_dot_n, p_dot_e, and h_dot
     p_dot_n = (cos_theta * cos_psi) * u + (sin_phi * sin_theta * cos_psi - cos_phi * sin_psi) * v + (cos_phi * sin_theta * cos_psi + sin_phi * sin_psi) * w
     p_dot_e = (cos_theta * sin_psi) * u + (sin_phi * sin_theta * sin_psi + cos_phi * cos_psi) * v + (cos_phi * sin_theta * sin_psi - sin_phi * cos_psi) * w
@@ -204,11 +207,11 @@ def f_euler(mav, x_euler, delta):
     theta_dot = q * cos_theta - r * sin_theta
     psi_dot = q * sin_theta * sec_theta + r * cos_theta * sec_theta
 
-    u_dot = r * v - q * w + mav.gravity * sin_theta + dp * (CxAlpha + Cxq * mav.c * q / (2 * mav._Va) + CxDe * delta.elevator) + thrust / mav.m
+    u_dot = r * v - q * w + MAV.gravity * sin_theta + dp * (CxAlpha + Cxq * MAV.c * q / (2 * mav._Va) + CxDe * delta.elevator) + thrust / MAV.mass
 
-    v_dot = p * w - r * u + mav.gravity * cos_theta * sin_phi + dp * (mav.C_Y_0 + mav.C_Y_beta * mav._beta + MAV.C_Y_p * mav.b * p  / (2 * mav._Va) + mav.C_Y_r * mav.b * r / (2 * mav._Va) + mav.C_Y_delta_a * delta.aileron + mav.C_Y_delta_r * delta.rudder) 
+    v_dot = p * w - r * u + MAV.gravity * cos_theta * sin_phi + dp * (MAV.C_Y_0 + MAV.C_Y_beta * mav._beta + MAV.C_Y_p * MAV.b * p  / (2 * mav._Va) + MAV.C_Y_r * MAV.b * r / (2 * mav._Va) + MAV.C_Y_delta_a * delta.aileron + MAV.C_Y_delta_r * delta.rudder) 
 
-    w_dot = q * u - p * v + mav.gravity * cos_theta * cos_phi + dp * (CzAlpha + Czq * mav.c *q / (2 * mav._Va) + CzDe * delta.elevator)
+    w_dot = q * u - p * v + MAV.gravity * cos_theta * cos_phi + dp * (CzAlpha + Czq * MAV.c *q / (2 * mav._Va) + CzDe * delta.elevator)
     
     timp =  .5 * MAV.rho * mav._Va **2 * MAV.b * MAV.S_wing
     tmpQ = .5 * MAV.rho * mav._Va **2 * MAV.c * MAV.S_wing/(2* MAV.Jy)
@@ -228,10 +231,10 @@ def df_dx(mav, x_euler, delta):
     f_at_x = f_euler(mav, x_euler, delta)  # assuming f is a function defined elsewhere
     for i in range(0, n):
         x_eps = np.copy(x_euler)
-        x_eps[i, 0] += eps  # add eps to i-th state
+        x_eps[i] += eps  # add eps to i-th state
         fatx_eps = f_euler(mav, x_eps, delta)
         df_dxi = (fatx_eps - f_at_x) / eps
-        A[:, i] = df_dxi[:, 0]
+        A[:, i] = df_dxi[:]
 
     return A
     ##### TODO #####

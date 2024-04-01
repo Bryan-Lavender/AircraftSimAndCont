@@ -6,6 +6,10 @@ Repository Description: Airplane Simulation in python for ECE 5353, Spring 2024
 
 
 
+version 1.6.1: implemented the alpha controlled elevator with only one PID controller (alpha to delta_e) with p = -5, I = -0.0018 and D = -.5 
+
+version 1.5: trim
+
 version 1.4: implemented mav_dynamics_control.py as well as mavsim_chapter4.py. I stuck with the books outline as the other one i could not control correctly. also, controls are easier with those from what i noticed. 
 
 

@@ -1,11 +1,11 @@
 import numpy as np
-import design_projects.chap05.model_coef as TF
+#import design_projects.chap05.model_coef as TF
 import parameters.aerosonde_parameters as MAV
 
 
 #### TODO #####
 gravity = MAV.gravity  # gravity constant
-Va0 = TF.Va_trim
+Va0 = 25
 rho = 0 # density of air
 sigma = 0  # low pass filter gain for derivative
 

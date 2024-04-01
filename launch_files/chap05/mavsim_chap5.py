@@ -20,7 +20,7 @@ from viewers.data_viewer import DataViewer
 from models.mav_dynamics_control import MavDynamics
 from models.wind_simulation import WindSimulation
 from models.trim import compute_trim
-from models.compute_models import compute_model
+from models.compute_models import compute_model, compute_ss_model
 from tools.signals import Signals
 
 #quitter = QuitListener()
@@ -62,6 +62,10 @@ delta = trim_input  # set input to constant constant trim input
 # # compute the state space model linearized about trim
 if COMPUTE_MODEL:
     compute_model(mav, trim_state, trim_input)
+    A_lon, B_lon, A_lat, B_lat = compute_ss_model(mav, trim_state, trim_input)
+    print(np.linalg.eigvals(A_lon))
+
+exit()
 
 # this signal will be used to excite modes
 input_signal = Signals(amplitude=0.3,

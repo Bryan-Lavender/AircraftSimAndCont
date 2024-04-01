@@ -8,13 +8,13 @@ import numpy as np
 
 
 class PIDControl:
-    def __init__(self, kp=0.0, ki=0.0, kd=0.0, Ts=0.01, sigma=0.05, limit=1.0):
+    def __init__(self, kp=0.0, ki=0.0, kd=0.0, Ts=0.01, sigma=0.05, limit=1.0, init_integrator = 0.0):
         self.kp = kp
         self.ki = ki
         self.kd = kd
         self.Ts = Ts
         self.limit = limit
-        self.integrator = 0.0
+        self.integrator =init_integrator
         self.error_delay_1 = 0.0
         self.error_dot_delay_1 = 0.0
         self.y_dot = 0.0
