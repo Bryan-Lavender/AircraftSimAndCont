@@ -84,17 +84,22 @@ input_signal = Signals(amplitude=0.3,
                        start_time=4.0)
 # main simulation loop
 print("Press 'Esc' to exit...")
+print(Va_command.square(sim_time), course_command.square(sim_time), altitude_command.square(sim_time))
 while sim_time < end_time:
 
     # -------autopilot commands-------------
-    commands.airspeed_command = Va_command.square(sim_time)
-    commands.course_command = course_command.square(sim_time)
-    commands.altitude_command = altitude_command.square(sim_time)
-
+    if sim_time < 10:
+        commands.airspeed_command = 25.
+        commands.course_command = 0.
+        commands.altitude_command = 100.
+    else:
+        commands.airspeed_command = 35.
+        commands.course_command = 1.57
+        commands.altitude_command = 200.
     # -------autopilot-------------
     estimated_state = mav.true_state  # uses true states in the control
     delta, commanded_state = autopilot.update(commands, estimated_state)
-    delta.rudder = delta.rudder + input_signal.doublet(time = sim_time)
+    #delta.rudder = delta.rudder + input_signal.doublet(time = sim_time)
 
     # -------physical system-------------
     current_wind = wind.update()  # get the new wind vector
