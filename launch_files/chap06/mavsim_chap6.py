@@ -62,9 +62,9 @@ autopilot = Autopilot(delta,mav,SIM.ts_simulation)
 from message_types.msg_autopilot import MsgAutopilot
 commands = MsgAutopilot()
 Va_command = Signals(dc_offset=25.0,
-                     amplitude=3.0,
-                     start_time=2.0,
-                     frequency=0.01)
+                     amplitude=5.0,
+                     start_time=4.0,
+                     frequency=0.02)
 altitude_command = Signals(dc_offset=100.0,
                            amplitude=20.0,
                            start_time=0.0,
@@ -86,16 +86,18 @@ input_signal = Signals(amplitude=0.3,
 print("Press 'Esc' to exit...")
 print(Va_command.square(sim_time), course_command.square(sim_time), altitude_command.square(sim_time))
 while sim_time < end_time:
-
-    # -------autopilot commands-------------
-    if sim_time < 10:
-        commands.airspeed_command = 25.
-        commands.course_command = 0.
-        commands.altitude_command = 100.
-    else:
-        commands.airspeed_command = 35.
-        commands.course_command = 1.57
-        commands.altitude_command = 200.
+    commands.airspeed_command = Va_command.square(sim_time)
+    commands.course_command = np.deg2rad(90)
+    commands.altitude_command = altitude_command.square(sim_time)
+    # # -------autopilot commands-------------
+    # if sim_time < 10:
+    #     commands.airspeed_command = 25.
+    #     commands.course_command = 0.
+    #     commands.altitude_command = 100.
+    # else:
+    #     commands.airspeed_command = 35.
+    #     commands.course_command = 1.57
+    #     commands.altitude_command = 200.
     # -------autopilot-------------
     estimated_state = mav.true_state  # uses true states in the control
     delta, commanded_state = autopilot.update(commands, estimated_state)

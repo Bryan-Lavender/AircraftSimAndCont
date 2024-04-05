@@ -15,7 +15,7 @@ from message_types.msg_state import MsgState
 from message_types.msg_delta import MsgDelta
 from controllers.pid_control import PIDControl
 from controllers.pd_control import PDControl
-airspeed_throttle_kp = 0.0
+airspeed_throttle_kp = 1
 airspeed_throttle_ki = 0.0001
 
 
@@ -26,30 +26,31 @@ yaw_damper_kd = 1.0
 
 
 ####elevator from alpha
-alpha_elevator_kp = -5
-alpha_elevator_ki = -0.0018
-alpha_elevator_kd = -.5
+alpha_elevator_kp = -15.
+alpha_elevator_ki = -10.
+alpha_elevator_kd = -1
 
 ###Alpha from Gamma
-gamma_alpha_kp = 50.
-gamma_alpha_ki = 0.000001
-gamma_alpha_kd = 5
+#gamma might be just a pd controller
+gamma_alpha_kp = 1.
+gamma_alpha_ki = 0.1
+gamma_alpha_kd = 0.
 ###Alpha Prior Set
 
 ###Gamma from Altitude
-altitude_gamma_kp = 500.
-altitude_gamma_ki = 0.00000018
-altitude_gamma_kd = 50
+altitude_gamma_kp = .01
+altitude_gamma_ki = 0.001
+altitude_gamma_kd = .01
 
 ###Delta a from roll
-roll_Aileron_kp = 1.
+roll_Aileron_kp = 10.
 roll_Aileron_ki = 0.0018
-roll_Aileron_kd = .1
+roll_Aileron_kd = .0
 
 ###roll from chi
-chi_roll_kp = 10.
-chi_roll_ki = 0.0018
-chi_roll_kd = 1
+chi_roll_kp = 1.5
+chi_roll_ki = 0.18
+chi_roll_kd = .1
 
 class Autopilot:
     def __init__(self, delta, mav, ts_control):
@@ -80,7 +81,7 @@ class Autopilot:
             kd = gamma_alpha_kd,
             limit = 0.0,
             Ts = ts_control,
-            init_integrator=mav._alpha/gamma_alpha_ki,
+            init_integrator=mav.true_state.alpha/gamma_alpha_ki,
             Upper_limit=0.20944,
             Lower_limit=-0.0349066
         )
@@ -92,7 +93,7 @@ class Autopilot:
             kd = altitude_gamma_kd,
             limit = 0.0,
             Ts = ts_control,
-            init_integrator=0/altitude_gamma_ki,
+            init_integrator=-mav.true_state.gamma/altitude_gamma_ki,
             Upper_limit=0.261799,
             Lower_limit=-0.261799
         )
@@ -147,17 +148,24 @@ class Autopilot:
         #alpha_set = 0.104
         #alpha_set = self.alpha_from_gamma.update(0.104 ,state.gamma)
         #print(alpha_set)
+        course = state.chi
+        # if state.chi <0:
+        #     course += 2*np.pi
+        gamma_c = self.gamma_from_altitude.update(Alt_set, state.altitude)
+        alpha_c = self.alpha_from_gamma.update(gamma_c, -state.gamma)
         delta.elevator = self.elevator_from_alpha.update(self.alpha_from_gamma.update(self.gamma_from_altitude.update(Alt_set, state.altitude) ,-state.gamma), state.alpha)
-
-        delta.aileron = self.aileron_from_roll.update(self.roll_from_chi.update(Chi_set,state.chi), state.phi)
+        roll_c = self.roll_from_chi.update(Chi_set,state.chi)
+        delta.aileron = self.aileron_from_roll.update(self.roll_from_chi.update(Chi_set,course), state.phi)
 
         # construct control outputs and commanded states
         
-        self.commanded_state.altitude = 0
-        self.commanded_state.Va = 0
-        self.commanded_state.phi = 0
+        self.commanded_state.altitude = Alt_set
+        self.commanded_state.gamma = gamma_c
+        self.commanded_state.alpha = alpha_c
+        self.commanded_state.Va = Va_set
+        self.commanded_state.phi = roll_c
         self.commanded_state.theta = 0
-        self.commanded_state.chi = 0
+        self.commanded_state.chi = Chi_set
         return delta, self.commanded_state
 
     def saturate(self, input, low_limit, up_limit):
