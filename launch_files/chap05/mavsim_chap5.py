@@ -9,7 +9,7 @@ mavsim_python
 import os, sys
 # insert parent directory at beginning of python search path
 from pathlib import Path
-sys.path.insert(0,os.fspath(Path(__file__).parents[1]))
+sys.path.insert(0,os.fspath(Path(__file__).parents[2]))
 # use QuitListener for Linux or PC <- doesn't work on Mac
 #from tools.quit_listener import QuitListener
 import pyqtgraph as pg
@@ -19,7 +19,8 @@ from viewers.mav_viewer import MavViewer
 from viewers.data_viewer import DataViewer
 from models.mav_dynamics_control import MavDynamics
 from models.wind_simulation import WindSimulation
-from models.trim import compute_trim
+#from models.trim import compute_trim
+from mystuff.trim import compute_trim, do_trim
 from models.compute_models import compute_model, compute_ss_model
 from tools.signals import Signals
 
@@ -55,13 +56,13 @@ mav = MavDynamics(SIM.ts_simulation)
 # use compute_trim function to compute trim state and trim input
 Va = 25.
 gamma = 0.*np.pi/180.
-trim_state, trim_input = compute_trim(mav, Va, gamma)
+trim_state, trim_input = do_trim(mav, Va, mav._alpha)
 mav._state = trim_state  # set the initial state of the mav to the trim state
 delta = trim_input  # set input to constant constant trim input
 
 # # compute the state space model linearized about trim
 if COMPUTE_MODEL:
-    compute_model(mav, trim_state, trim_input)
+    #compute_model(mav, trim_state, trim_input)
     A_lon, B_lon, A_lat, B_lat = compute_ss_model(mav, trim_state, trim_input)
     print(np.linalg.eigvals(A_lon))
 

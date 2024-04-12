@@ -71,15 +71,22 @@ mav.initialize_velocity(Va0, alpha, beta0)
 delta.elevator = elevator
 delta.throttle = throttle
 
-# A_lon, B_lon, A_lat, B_lat = compute_ss_model(mav, mav._state[:13], MsgDelta(elevator=elevator, aileron =0, rudder = 0, throttle = throttle))
-# eigs = np.linalg.eigvals(A_lon)
 
-# real = [i.real for i in eigs] 
-# print(real)
+trim_state = mav._state[:13]
+trim_input = MsgDelta(elevator=elevator,
+                        aileron=0,
+                        rudder=0,
+                        throttle=throttle)
+Alon, Blon, Alat, Blat = compute_ss_model(mav,trim_state,trim_input)
 
-# imag = [i.imag for i in eigs] 
-# print(imag)
-# initialize the simulation time
+eigs = np.linalg.eigvals(Alon)
+print(eigs)
+x = [ele.real for ele in eigs] 
+y = [ele.imag for ele in eigs] 
+
+print(x,y)
+
+#exit()
 sim_time = SIM.start_time
 plot_time = sim_time
 end_time = 100

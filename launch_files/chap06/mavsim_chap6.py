@@ -58,6 +58,7 @@ mav = MavDynamics(SIM.ts_simulation)
 delta = MsgDelta()
 delta = do_trim(mav, Va=25, alpha = 0)
 autopilot = Autopilot(delta,mav,SIM.ts_simulation)
+print(SIM.ts_simulation)
 # autopilot commands
 from message_types.msg_autopilot import MsgAutopilot
 commands = MsgAutopilot()

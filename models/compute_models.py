@@ -131,12 +131,10 @@ def compute_ss_model(mav, trim_state, trim_input):
 def euler_state(x_quat):
     # convert state x with attitude represented by quaternion
     # to x_euler with attitude represented by Euler angles
-    Eangles = quaternion_to_euler(x_quat[6:10])
-    x_euler = [x_quat[i][0] for i in range(0, 6)]
-    for i in range(0, 3):
-        x_euler.append(Eangles[i])
-    for i in range(10, len(x_quat)):
-        x_euler.append(x_quat[i][0])
+    x_euler = np.zeros((12,1))
+    x_euler[6:9,0] = quaternion_to_euler(x_quat[6:10,0])
+    x_euler[0:6,0] = x_quat[0:6,0]
+    x_euler[9:12,0] = x_quat[10:13,0]
     
     ##### TODO #####
     x_euler = np.array(x_euler)
@@ -145,18 +143,10 @@ def euler_state(x_quat):
 def quaternion_state(x_euler):
     # convert state x_euler with attitude represented by Euler angles
     # to x_quat with attitude represented by quaternions
-    a,b,c = x_euler[6:9]
-    Qangles = euler_to_quaternion(a,b,c)
-    x_quat = [x_euler[i] for i in range(0, 6)]
-    for i in range(0, 4):
-        x_quat.append(Qangles[i].item())
-    for i in range(9, len(x_euler)):
-        x_quat.append(x_euler[i])
-    
-    ##### TODO #####
-        
-   
-    x_quat = np.array(x_quat)
+    x_quat = np.zeros((13,1))
+    x_quat[6:10] = euler_to_quaternion(x_euler[6,0],x_euler[7,0],x_euler[8,0])
+    x_quat[0:6] = x_euler[0:6]
+    x_quat[10:13] = x_euler[9:12]
     return x_quat
 
 def f_euler(mav, x_euler, delta):
@@ -221,21 +211,20 @@ def f_euler(mav, x_euler, delta):
     f_euler_ = np.array([p_dot_n, p_dot_e, h_dot, u_dot, v_dot, w_dot, phi_dot, theta_dot, psi_dot, p_dot, q_dot, r_dot])
 
     return f_euler_
+    
 
 def df_dx(mav, x_euler, delta):
     # take partial of f_euler with respect to x_euler
     eps = 0.01  # deviation
-
-    m, n = [12,12]  # assuming x is a two-dimensional array
-    A = np.zeros((m, n))  # Jacobian of f wrt x
-    f_at_x = f_euler(mav, x_euler, delta)  # assuming f is a function defined elsewhere
-    for i in range(0, n):
+    A = np.zeros((12, 12)) # Jacobian of f wrt x
+    f_at_x = f_euler(mav, x_euler,delta=delta)
+    for i in range (0, 12):
         x_eps = np.copy(x_euler)
-        x_eps[i] += eps  # add eps to i-th state
-        fatx_eps = f_euler(mav, x_eps, delta)
-        df_dxi = (fatx_eps - f_at_x) / eps
-        A[:, i] = df_dxi[:]
-
+        x_eps[i][0] += eps # add eps to i th s ta te
+        f_at_x_eps = f_euler(mav,x_eps, delta)
+        df_dxi = (f_at_x_eps - f_at_x) / eps
+        A[:, i] = df_dxi [: ,0]
+    
     return A
     ##### TODO #####
     A = np.zeros((12, 12))  # Jacobian of f wrt x
