@@ -26,6 +26,7 @@ class PIControl:
         # PI control
         u = self.kp * error \
             + self.ki * self.integrator
+      
         # saturate PI control at limit
         u_sat = self._saturate(u)
         # integral anti-windup
@@ -42,7 +43,7 @@ class PIControl:
         if u >= self.limit:
             u_sat = self.limit
         elif u <= -self.limit:
-            u_sat = -self.limit
+            u_sat = 0
         else:
             u_sat = u
         return u_sat

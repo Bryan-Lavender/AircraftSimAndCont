@@ -13,7 +13,10 @@ from models.mav_dynamics import MavDynamics as MavDynamicsForces
 # load message types
 from message_types.msg_state import MsgState
 from message_types.msg_delta import MsgDelta
+from message_types.msg_sensors import MsgSensors
+
 import parameters.aerosonde_parameters as MAV
+import parameters.sensor_parameters as SENSOR
 from tools.rotations import quaternion_to_rotation, quaternion_to_euler, euler_to_rotation, euler_to_quaternion
 
 
@@ -25,7 +28,21 @@ class MavDynamics(MavDynamicsForces):
         # store forces to avoid recalculation in the sensors function
         self._forces = np.array([[0.], [0.], [0.]])
         self.initialize_velocity(MAV.u0, 0.,0.)
-        
+        self._sensors = MsgSensors()
+        # random walk parameters for GPS
+        self._gps_eta_n = 0.
+        self._gps_eta_e = 0.
+        self._gps_eta_h = 0.
+        # timer so that gps only updates every ts_gps seconds
+        self._t_gps = 999.  # large value ensures gps updates at initial time.
+        # update velocity data and forces and moments
+        #self._forces_moments = np.array([0.,0.,0.,0.,0.,0.,])
+
+
+        self.PriorAlt = []
+        self.PriorLim = 0
+
+        self.current_forces_moments = np.array([0.,0.,0.,0.,0.,0.,])
     def initialize_velocity(self, va, alpha, beta):
         self._Va = va
         self._alpha = alpha
@@ -52,6 +69,113 @@ class MavDynamics(MavDynamicsForces):
         return(forces[0]**2 + forces[2]**2 + forces[4]**2)
     ###################################
     # public functions
+    def sensors(self):
+        "Return value of sensors on MAV: gyros, accels, absolute_pressure, dynamic_pressure, GPS"
+        #gyro_x = p + n_biax_x equation 7.5
+
+
+        # simulate rate gyros(units are rad / sec)
+        sensor_noise = np.radians(.5)
+        self._sensors.gyro_x = self.true_state.p + np.random.normal(0.0, sensor_noise)
+        self._sensors.gyro_y = self.true_state.q + np.random.normal(0.0, sensor_noise)
+        self._sensors.gyro_z = self.true_state.r + np.random.normal(0.0, sensor_noise)
+
+
+        # simulate accelerometers(units of g) Equaiton 7.3
+        self._sensors.accel_x = self.current_forces_moments[0][0] / MAV.mass + MAV.gravity * np.sin(self.true_state.theta) + np.random.normal(0,SENSOR.accel_sigma)
+        self._sensors.accel_y = self.current_forces_moments[1][0] / MAV.mass - MAV.gravity * np.cos(self.true_state.theta)*np.sin(self.true_state.phi) + np.random.normal(0,SENSOR.accel_sigma)
+        self._sensors.accel_z = self.current_forces_moments[2][0] / MAV.mass - MAV.gravity * np.cos(self.true_state.theta)*np.cos(self.true_state.phi) + np.random.normal(0,SENSOR.accel_sigma)
+
+        # simulate magnetometers
+        # magnetic field in provo has magnetic declination of 12.5 degrees
+        # and magnetic inclination of 66 degrees
+        dec = np.radians(12.5)
+        inc = np.radians(66)
+        
+        
+        #note: np works in radians, and to get rotation we just need to rotate inclination then declination
+        R_inc = np.array([
+                 [np.cos(-inc), 0, -np.sin(-inc)],
+                 [0,            1,             0],
+                 [np.sin(-inc), 0,  np.cos(-inc)]
+                 ])
+        R_dec = np.array([[ np.cos(dec), np.sin(dec), 0],
+                 [-np.sin(dec), np.cos(dec), 0],
+                 [0           ,0           , 1]])
+
+
+        mi = (R_inc @ R_dec).T @ np.array([1,0,0])
+        phi, theta, psi = [self.true_state.phi, self.true_state.theta, self.true_state.psi]
+        mb = euler_to_rotation(phi, theta, psi).T @ mi \
+            + np.random.normal(scale = SENSOR.mag_sigma, size =3)
+        
+
+        ct = np.cos(self.true_state.theta)
+        st = np.sin(self.true_state.theta)
+        cp = np.cos(self.true_state.phi)
+        sp = np.sin(self.true_state.phi)
+        R_v1_b = np.array([
+                  [ct, st*sp,  st*cp],
+                  [0 ,    cp,    -sp],
+                  [-st, ct*sp, ct*cp]
+                  ])
+        mv1 = R_v1_b @ mb
+        self._sensors.mag_x = mb[0]
+        self._sensors.mag_y = mb[1]
+        self._sensors.mag_z = mb[2]
+        #print(self._sensors.mag_x, self._sensors.mag_y, self._sensors.mag_z)
+        #print("MV1: ", mv1, "heading: ", -np.arctan2(mv1[1], mv1[0]) + dec)
+        # simulate pressure sensors
+        P0 = 29.92
+        T0 = 288.15
+        L0 =-0.0065
+        g = 9.8665
+        R = 8.31432
+        M = 0.0289699
+
+        hmsg = self.true_state.altitude
+        noise_abs_press = np.random.normal(SENSOR.abs_pres_sigma)
+        noise_diff_press = np.random.normal(SENSOR.diff_pres_sigma)
+
+        #begin running avgs
+        if self.PriorLim <= 1:
+            hmsg = hmsg
+        else:
+            if self.PriorAlt == []:
+                hmsg = hmsg
+                self.PriorAlt.append(hmsg)
+            elif len(self.PriorAlt) < self.PriorLim - 1:
+                hmsg = (sum(self.PriorAlt) + hmsg) / (len(self.PriorAlt) + 1)
+                self.PriorAlt.append(self.true_state.altitude)
+            elif len(self.PriorAlt) == self.PriorLim - 1:
+                hmsg = (sum(self.PriorAlt) + hmsg) / (len(self.PriorAlt) + 1)
+                self.PriorAlt.append(self.true_state.altitude)
+                self.PriorAlt.pop(0)
+            
+        P = P0 * (1-L0 * hmsg/T0)**((g*M)/(R*L0))
+        pground = 130000/3385
+        self._sensors.abs_pressure = pground-P \
+            #+ noise_abs_press
+        self._sensors.diff_pressure = .5 * MAV.rho * self.true_state.Va**2 + noise_diff_press
+        
+
+        # simulate GPS sensor
+        exp = np.exp(-SENSOR.gps_k * SENSOR.ts_gps)
+        
+        if self._t_gps >= SENSOR.ts_gps:
+            self._gps_eta_n = exp * self._gps_eta_n + SENSOR.ts_gps * np.random.normal(SENSOR.gps_n_sigma)
+            self._gps_eta_e = exp * self._gps_eta_e + SENSOR.ts_gps * np.random.normal(SENSOR.gps_e_sigma)
+            self._gps_eta_h = exp * self._gps_eta_h + SENSOR.ts_gps * np.random.normal(SENSOR.gps_h_sigma)
+            self._sensors.gps_n = self.true_state.north    + self._gps_eta_n
+            self._sensors.gps_e = self.true_state.east     + self._gps_eta_e
+            self._sensors.gps_h = self.true_state.altitude + self._gps_eta_h
+            self._sensors.gps_Vg = np.sqrt((self.true_state.Va * np.cos(self.true_state.psi) + self.true_state.wn)**2 + (self.true_state.Va * np.sin(self.true_state.psi) + self.true_state.we)**2) + np.random.normal(SENSOR.gps_Vg_sigma)
+            self._sensors.gps_course = np.arctan2(self.true_state.Va * np.sin(self.true_state.psi) + self.true_state.we, self.true_state.Va * np.cos(self.true_state.psi) + self.true_state.wn) + np.random.normal(SENSOR.gps_course_sigma)
+            self._t_gps = 0.
+        else:
+            self._t_gps += self._ts_simulation
+        return self._sensors
+
     def update(self, delta, wind):
         '''
             Integrate the differential equations defining dynamics, update sensors
@@ -162,6 +286,7 @@ class MavDynamics(MavDynamicsForces):
         Ml = Mx - torque_prop
        
         forces_moments = np.array([[Fx[0], Fy[0], Fz[0], Ml, My, Mz]]).T
+        self.current_forces_moments = forces_moments
         return forces_moments
 
     def _motor_thrust_torque(self, Va, delta_t):

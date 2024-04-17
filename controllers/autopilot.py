@@ -15,7 +15,8 @@ from message_types.msg_state import MsgState
 from message_types.msg_delta import MsgDelta
 from controllers.pid_control import PIDControl
 from controllers.pd_control import PDControl
-airspeed_throttle_kp = 1
+
+airspeed_throttle_kp = 2.6
 airspeed_throttle_ki = 0.0001
 
 
@@ -38,7 +39,7 @@ gamma_alpha_kd = 0.
 ###Alpha Prior Set
 
 ###Gamma from Altitude
-altitude_gamma_kp = .01
+altitude_gamma_kp = .1
 altitude_gamma_ki = 0.001
 altitude_gamma_kd = .01
 
@@ -166,6 +167,7 @@ class Autopilot:
         self.commanded_state.phi = roll_c
         self.commanded_state.theta = 0
         self.commanded_state.chi = Chi_set
+        
         return delta, self.commanded_state
 
     def saturate(self, input, low_limit, up_limit):
