@@ -364,7 +364,7 @@ class MavDynamics(MavDynamicsForces):
         self.true_state.theta = theta
         self.true_state.psi = psi
         self.true_state.Vg = np.linalg.norm(pdot)
-        self.true_state.gamma = np.arcsin(pdot.item(2) / self.true_state.Vg)
+        self.true_state.gamma = -np.arcsin(pdot.item(2) / self.true_state.Vg)
         self.true_state.chi = np.arctan2(pdot.item(1), pdot.item(0))
         self.true_state.p = self._state.item(10)
         self.true_state.q = self._state.item(11)

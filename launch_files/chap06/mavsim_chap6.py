@@ -66,7 +66,7 @@ Va_command = Signals(dc_offset=25.0,
                      amplitude=5.0,
                      start_time=4.0,
                      frequency=0.02)
-altitude_command = Signals(dc_offset=100.0,
+altitude_command = Signals(dc_offset=200.0,
                            amplitude=20.0,
                            start_time=0.0,
                            frequency=0.02)
@@ -77,7 +77,7 @@ course_command = Signals(dc_offset=np.radians(180),
 
 # initialize the simulation time
 sim_time = SIM.start_time
-end_time = 100
+end_time = 1000
 
 
 input_signal = Signals(amplitude=0.3,
@@ -87,20 +87,23 @@ input_signal = Signals(amplitude=0.3,
 print("Press 'Esc' to exit...")
 print(Va_command.square(sim_time), course_command.square(sim_time), altitude_command.square(sim_time))
 while sim_time < end_time:
+    # commands.airspeed_command = mav.true_state.Va
+    # commands.course_command = mav.true_state.chi
     commands.airspeed_command = Va_command.square(sim_time)
-    commands.course_command = np.deg2rad(90)
+    commands.course_command = course_command.square(sim_time)
     commands.altitude_command = altitude_command.square(sim_time)
     # # -------autopilot commands-------------
     # if sim_time < 10:
-    #     commands.airspeed_command = 25.
+    #     commands.airspeed_command = mav.true_state.Va
     #     commands.course_command = 0.
-    #     commands.altitude_command = 100.
+    #     commands.altitude_command = mav.true_state.altitude
     # else:
-    #     commands.airspeed_command = 35.
-    #     commands.course_command = 1.57
-    #     commands.altitude_command = 200.
+    #     commands.airspeed_command = 30
+    #     commands.course_command = 0.523599
+    #     commands.altitude_command = 300
     # -------autopilot-------------
     estimated_state = mav.true_state  # uses true states in the control
+    
     delta, commanded_state = autopilot.update(commands, estimated_state)
     #delta.rudder = delta.rudder + input_signal.doublet(time = sim_time)
 

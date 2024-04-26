@@ -42,7 +42,7 @@ class PIControl:
         # saturate u at +- self.limit
         if u >= self.limit:
             u_sat = self.limit
-        elif u <= -self.limit:
+        elif u <= 0:
             u_sat = 0
         else:
             u_sat = u

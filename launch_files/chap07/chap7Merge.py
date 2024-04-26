@@ -84,15 +84,23 @@ print("Press 'Esc' to exit...")
 while sim_time < end_time:
 
     # -------autopilot commands-------------
-    commands.airspeed_command = Va_command.square(sim_time)
-    commands.course_command = course_command.square(sim_time)
-    commands.altitude_command = altitude_command.square(sim_time)
+    # commands.airspeed_command = Va_command.square(sim_time)
+    # commands.course_command = course_command.square(sim_time)
+    # commands.altitude_command = altitude_command.square(sim_time)
     #commands.course_command = mav.true_state.chi
     #commands.airspeed_command = 30.0
     #commands.altitude_command = 609.6
     # commands.airspeed_command = mav.true_state.Va
     # commands.altitude_command = mav.true_state.altitude
     # commands.course_command = mav.true_state.chi
+    if sim_time < 10:
+        commands.airspeed_command = mav.true_state.Va
+        commands.course_command = 0.
+        commands.altitude_command = mav.true_state.altitude
+    else:
+        commands.airspeed_command = 30
+        commands.course_command = 0.523599
+        commands.altitude_command = 300
     # -------autopilot-------------
     measurements = mav.sensors()  # get sensor measurements
     estimated_state = mav.true_state  # uses true states in the control

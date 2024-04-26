@@ -197,7 +197,7 @@ class DataViewer:
             self._plotter.add_data_point(plot_id='v', data_label='v', xvalue=t, yvalue=true_state.v)
             self._plotter.add_data_point(plot_id='w', data_label='w', xvalue=t, yvalue=true_state.w)
             if commanded_state != None:
-                self._plotter.add_data_point(plot_id='gamma', data_label='gamma', xvalue=t, yvalue=-true_state.gamma)
+                self._plotter.add_data_point(plot_id='gamma', data_label='gamma', xvalue=t, yvalue=true_state.gamma)
                 self._plotter.add_data_point(plot_id='gamma', data_label='gammac', xvalue=t, yvalue=commanded_state.gamma)
                 self._plotter.add_data_point(plot_id='alpha', data_label="alphac", xvalue=t, yvalue= self.__rad_to_deg(commanded_state.alpha))
             else:
