@@ -10,7 +10,7 @@ from tools.rotations import euler_to_quaternion, quaternion_to_euler
 import parameters.aerosonde_parameters as MAV
 from parameters.simulation_parameters import ts_simulation as Ts
 from message_types.msg_delta import MsgDelta
-
+from models.mav_dynamics_control import MavDynamics
 
 def compute_model(mav, trim_state, trim_input):
     # Note: this function alters the mav private variables
@@ -94,13 +94,13 @@ def compute_tf_model(mav, trim_state, trim_input):
     ###### TODO ######
     # define transfer function constants
     rhovasb = .5 * MAV.rho * Va_trim**2 * MAV.S_wing * MAV.b
-    a_phi1 = rhovasb * MAV.C_p_p * MAV.b/(2*Va_trim)
+    a_phi1 = -rhovasb * MAV.C_p_p * MAV.b/(2*Va_trim)
     a_phi2 = rhovasb * MAV.C_p_delta_a
 
 
     rhovacs = .5 * MAV.rho * Va_trim**2 * MAV.S_wing * MAV.c/(MAV.Jy)
-    a_theta1 = rhovacs * MAV.C_m_q * MAV.c/(2*Va_trim)
-    a_theta2 = rhovacs * MAV.C_m_alpha
+    a_theta1 = -rhovacs * MAV.C_m_q * MAV.c/(2*Va_trim)
+    a_theta2 = -rhovacs * MAV.C_m_alpha
     a_theta3 = rhovacs * MAV.C_m_delta_e
 
     # Compute transfer function coefficients using new propulsion model
@@ -124,7 +124,7 @@ def compute_ss_model(mav, trim_state, trim_input):
     # change pd to h
 
     # extract lateral states (v, p, r, phi, psi)
-    A_lat = np.zeros((5,5))
+    A_lat = A[[4,9,11,6,8],:][:,[4,9,11,6,8]]
     B_lat = np.zeros((5,2))
     return A_lon, B_lon, A_lat, B_lat
 
@@ -162,6 +162,7 @@ def f_euler(mav, x_euler, delta):
     mav._update_velocity_data()
     ##### TODO #####
     pn, pe, pd, u,v,w, phi, theta, psi, p,q,r = x_euler
+    e0,e1,e2,e3 = x_quat[6:10,0]
     cos_theta = np.cos(theta)
     sin_theta = np.sin(theta)
     cos_phi = np.cos(phi)
@@ -173,35 +174,39 @@ def f_euler(mav, x_euler, delta):
     cos_alpha = np.cos(mav._alpha)
     sin_alpha = np.sin(mav._alpha)
 
-
+    m_minus = np.exp(-MAV.M*(mav._alpha-MAV.alpha0))
+    m_plus = np.exp(MAV.M*(mav._alpha+MAV.alpha0))
+    sigmoid = (1+m_minus+m_plus)/((1+m_minus)*(1+m_plus))
+    CL = (1-sigmoid)*(MAV.C_L_0+MAV.C_L_alpha*mav._alpha) + sigmoid*(2*np.sign(mav._alpha)*(sin_alpha**2)*cos_alpha)
+    CD = MAV.C_D_p + ((MAV.C_L_0+MAV.C_L_alpha * mav._alpha)**2)/(np.pi * MAV.e * MAV.AR)
     
-    C_L_alpha = MAV.C_L_0 + MAV.C_L_alpha * mav._alpha
-    C_D_alpha = MAV.C_D_0 + MAV.C_D_alpha * mav._alpha
-    CxAlpha = -C_D_alpha * cos_alpha + C_L_alpha * sin_alpha
-    Cxq = -MAV.C_D_q * cos_alpha + MAV.C_L_q * sin_alpha
-    CxDe = -MAV.C_D_delta_e * cos_alpha + MAV.C_L_delta_e * sin_alpha
+    C_X = -CD*cos_alpha + CL*sin_alpha
+    C_X_q = -MAV.C_D_q*cos_alpha + MAV.C_L_q*sin_alpha
+    C_X_de = -MAV.C_D_delta_e*cos_alpha + MAV.C_L_delta_e*sin_alpha
+    C_Z = -CD*sin_alpha - CL*cos_alpha
+    C_Z_q =  -MAV.C_D_q*sin_alpha - MAV.C_L_q*cos_alpha
+    C_Z_de = -MAV.C_D_delta_e*sin_alpha - MAV.C_L_delta_e*cos_alpha
+    thrust_prop, torque_prop = mav._motor_thrust_torque(mav._Va, delta.throttle)
 
-    CzAlpha = -C_D_alpha * sin_alpha - C_L_alpha * cos_alpha
-    Czq = -MAV.C_D_q * sin_alpha - MAV.C_L_q * cos_alpha
-    CzDe = -MAV.C_D_delta_e * sin_alpha - MAV.C_L_delta_e * cos_alpha
-    thrust = 1/2*MAV.rho*MAV.S_prop*((MAV.K_motor*delta.throttle)**2 - mav._Va**2)
     
 
 
     dp = (MAV.rho * mav._Va ** 2 * MAV.S_wing) / (2 * MAV.mass)
     # Equations for p_dot_n, p_dot_e, and h_dot
-    p_dot_n = (cos_theta * cos_psi) * u + (sin_phi * sin_theta * cos_psi - cos_phi * sin_psi) * v + (cos_phi * sin_theta * cos_psi + sin_phi * sin_psi) * w
-    p_dot_e = (cos_theta * sin_psi) * u + (sin_phi * sin_theta * sin_psi + cos_phi * cos_psi) * v + (cos_phi * sin_theta * sin_psi - sin_phi * cos_psi) * w
-    h_dot = u * sin_theta - v * sin_phi * cos_theta - w * cos_phi * cos_theta
-    phi_dot = p + q * sin_theta * tan_theta + r * cos_theta * tan_theta
-    theta_dot = q * cos_theta - r * sin_theta
-    psi_dot = q * sin_theta * sec_theta + r * cos_theta * sec_theta
+    p_dot_n = u*(e0**2 + e1**2 - e2**2 - e3**2) +v*2*(e1*e2-e0*e3) +w*2*(e1*e3+e2*e0)
+    p_dot_e = u*2*(e1*e2+e0*e3) + v*(e0**2-e1**2+e2**2-e3**2) + w*2*(e2*e3-e0*e1)
+    p_dot_d = u*2*(e1*e3-e0*e2) + v*2*(e2*e3+e0*e1) + w*(e0**2-e1**2-e2**2+e3**2)
+    h_dot = -p_dot_d
 
-    u_dot = r * v - q * w + MAV.gravity * sin_theta + dp * (CxAlpha + Cxq * MAV.c * q / (2 * mav._Va) + CxDe * delta.elevator) + thrust / MAV.mass
+    phi_dot = p + q * sin_phi * tan_theta + r * cos_phi * tan_theta
+    theta_dot = q * cos_phi - r * sin_phi
+    psi_dot = q * sin_phi * sec_theta + r * cos_phi * sec_theta
+
+    u_dot = r * v - q * w - MAV.gravity * sin_theta + dp * (C_X + C_X_q * MAV.c * q / (2 * mav._Va) + C_X_de * delta.elevator) + thrust_prop / MAV.mass
 
     v_dot = p * w - r * u + MAV.gravity * cos_theta * sin_phi + dp * (MAV.C_Y_0 + MAV.C_Y_beta * mav._beta + MAV.C_Y_p * MAV.b * p  / (2 * mav._Va) + MAV.C_Y_r * MAV.b * r / (2 * mav._Va) + MAV.C_Y_delta_a * delta.aileron + MAV.C_Y_delta_r * delta.rudder) 
 
-    w_dot = q * u - p * v + MAV.gravity * cos_theta * cos_phi + dp * (CzAlpha + Czq * MAV.c *q / (2 * mav._Va) + CzDe * delta.elevator)
+    w_dot = q * u - p * v + MAV.gravity * cos_theta * cos_phi + dp * (C_Z + C_Z_q * MAV.c *q / (2 * mav._Va) + C_Z_de * delta.elevator)
     
     timp =  .5 * MAV.rho * mav._Va **2 * MAV.b * MAV.S_wing
     tmpQ = .5 * MAV.rho * mav._Va **2 * MAV.c * MAV.S_wing/(2* MAV.Jy)
@@ -211,7 +216,7 @@ def f_euler(mav, x_euler, delta):
     f_euler_ = np.array([p_dot_n, p_dot_e, h_dot, u_dot, v_dot, w_dot, phi_dot, theta_dot, psi_dot, p_dot, q_dot, r_dot])
 
     return f_euler_
-    
+
 
 def df_dx(mav, x_euler, delta):
     # take partial of f_euler with respect to x_euler
@@ -234,24 +239,44 @@ def df_dx(mav, x_euler, delta):
 def df_du(mav, x_euler, delta):
     # take partial of f_euler with respect to input
     eps = 0.01  # deviation
-
-    ##### TODO #####
     B = np.zeros((12, 4))  # Jacobian of f wrt u
+
+    f_at_x = f_euler(mav, x_euler,delta=delta)
+    
+    delta.aileron+=eps
+    df_dxi = (f_euler(mav,x_euler, delta)-f_at_x)/eps
+    B[:, 1] = df_dxi [: ,0]
+    delta.aileron-=eps
+
+    delta.elevator+=eps
+    df_dxi = (f_euler(mav,x_euler, delta)-f_at_x)/eps
+    B[:, 0] = df_dxi [: ,0]
+    delta.elevator-=eps
+
+    delta.rudder+=eps
+    df_dxi = (f_euler(mav,x_euler, delta)-f_at_x)/eps
+    B[:, 2] = df_dxi [: ,0]
+    delta.rudder-=eps
+
+    delta.throttle+=eps
+    df_dxi = (f_euler(mav,x_euler, delta)-f_at_x)/eps
+    B[:, 3] = df_dxi [: ,0]
+    delta.throttle-=eps
     return B
 
 
 def dT_dVa(mav, Va, delta_t):
     # returns the derivative of motor thrust with respect to Va
     eps = 0.01
-
-    ##### TODO #####
-    dT_dVa = 0
+    thrust, torque = mav._motor_thrust_torque(Va, delta_t)
+    thruste, torque = mav._motor_thrust_torque(Va+eps, delta_t)
+    dT_dVa =(thruste-thrust)/eps
     return dT_dVa
 
 def dT_ddelta_t(mav, Va, delta_t):
     # returns the derivative of motor thrust with respect to delta_t
     eps = 0.01
-
-    ##### TODO #####
-    dT_ddelta_t = 0
+    thrust, torque = mav._motor_thrust_torque(Va, delta_t)
+    thruste, torque = mav._motor_thrust_torque(Va, delta_t+eps)
+    dT_ddelta_t =(thruste-thrust)/eps
     return dT_ddelta_t

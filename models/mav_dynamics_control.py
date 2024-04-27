@@ -123,8 +123,8 @@ class MavDynamics(MavDynamicsForces):
         self._sensors.mag_x = mb[0]
         self._sensors.mag_y = mb[1]
         self._sensors.mag_z = mb[2]
-        #print(self._sensors.mag_x, self._sensors.mag_y, self._sensors.mag_z)
-        #print("MV1: ", mv1, "heading: ", -np.arctan2(mv1[1], mv1[0]) + dec)
+        print(self._sensors.mag_x, self._sensors.mag_y, self._sensors.mag_z)
+        print("MV1: ", mv1, "heading: ", -np.arctan2(mv1[1], mv1[0]) + dec)
         # simulate pressure sensors
         P0 = 29.92
         T0 = 288.15
@@ -169,8 +169,8 @@ class MavDynamics(MavDynamicsForces):
             self._sensors.gps_n = self.true_state.north    + self._gps_eta_n
             self._sensors.gps_e = self.true_state.east     + self._gps_eta_e
             self._sensors.gps_h = self.true_state.altitude + self._gps_eta_h
-            self._sensors.gps_Vg = np.sqrt((self.true_state.Va * np.cos(self.true_state.psi) + self.true_state.wn)**2 + (self.true_state.Va * np.sin(self.true_state.psi) + self.true_state.we)**2) + np.random.normal(SENSOR.gps_Vg_sigma)
-            self._sensors.gps_course = np.arctan2(self.true_state.Va * np.sin(self.true_state.psi) + self.true_state.we, self.true_state.Va * np.cos(self.true_state.psi) + self.true_state.wn) + np.random.normal(SENSOR.gps_course_sigma)
+            self._sensors.gps_Vg = np.sqrt((self.true_state.Va * np.cos(self.true_state.psi) + self.true_state.wn)**2 + (self.true_state.Va * np.sin(self.true_state.psi) + self.true_state.we)**2) + np.random.normal(0,SENSOR.gps_Vg_sigma)
+            self._sensors.gps_course = np.arctan2(self.true_state.Va * np.sin(self.true_state.psi) + self.true_state.we, self.true_state.Va * np.cos(self.true_state.psi) + self.true_state.wn) + np.random.normal(0,SENSOR.gps_course_sigma)
             self._t_gps = 0.
         else:
             self._t_gps += self._ts_simulation
@@ -205,7 +205,7 @@ class MavDynamics(MavDynamicsForces):
 
         # self._wind = euler_to_rotation(phi, theta, psi).T @ (steady_state+gust)
         # velocity vector relative to the airmass ([ur , vr, wr]= ?)
-        Va_b = Vg_b - steady_state
+        Va_b = Vg_b - steady_state-gust
         ur, vr, wr = Va_b[:,0]
 
         # compute airspeed (self._Va = ?)

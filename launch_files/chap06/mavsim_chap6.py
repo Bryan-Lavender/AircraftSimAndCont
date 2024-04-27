@@ -97,10 +97,15 @@ while sim_time < end_time:
     #     commands.airspeed_command = mav.true_state.Va
     #     commands.course_command = 0.
     #     commands.altitude_command = mav.true_state.altitude
-    # else:
+    # elif sim_time < 40:
     #     commands.airspeed_command = 30
-    #     commands.course_command = 0.523599
+    #     commands.course_command = 0.785398
     #     commands.altitude_command = 300
+    # else:
+    #     commands.airspeed_command = 25
+    #     commands.course_command = 0.785398
+    #     commands.altitude_command = 200
+
     # -------autopilot-------------
     estimated_state = mav.true_state  # uses true states in the control
     
