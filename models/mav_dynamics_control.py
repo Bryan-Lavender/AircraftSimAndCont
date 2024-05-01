@@ -123,8 +123,7 @@ class MavDynamics(MavDynamicsForces):
         self._sensors.mag_x = mb[0]
         self._sensors.mag_y = mb[1]
         self._sensors.mag_z = mb[2]
-        print(self._sensors.mag_x, self._sensors.mag_y, self._sensors.mag_z)
-        print("MV1: ", mv1, "heading: ", -np.arctan2(mv1[1], mv1[0]) + dec)
+
         # simulate pressure sensors
         P0 = 29.92
         T0 = 288.15
