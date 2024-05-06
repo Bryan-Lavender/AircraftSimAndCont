@@ -151,8 +151,8 @@ class Autopilot:
         #alpha_set = self.alpha_from_gamma.update(0.104 ,state.gamma)
         #print(alpha_set)
         course = state.chi
-        if state.chi <0:
-            course += 2*np.pi
+        # if state.chi <0:
+        #     course += 2*np.pi
         gamma_c = self.gamma_from_altitude.update(Alt_set, state.altitude)
         #print(gamma_c, state.gamma)
         alpha_c = self.alpha_from_gamma.update(gamma_c, state.gamma)
